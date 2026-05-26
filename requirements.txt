@@ -1,5 +1,5 @@
 # Data
-yfinance==0.2.51
+yfinance>=1.4.0
 pandas==2.2.3
 numpy==2.1.3
 

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Venv
+venv/
+.venv/
+env/
+
+# Data — we will NOT commit raw or processed data
+data/raw/*.csv
+data/processed/*.csv
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# But we DO commit labels (the hand-labeled eval set is the heart of the project)
+# data/labels/ is tracked by default
+
+# Models
+*.pt
+*.pth
+*.pkl
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Notebook outputs (we'll commit a cleaned version separately)
+notebooks/*-output.ipynb
