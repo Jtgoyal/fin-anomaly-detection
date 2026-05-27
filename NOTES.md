@@ -7,11 +7,12 @@
 - `src/data_loader.py` — pulls 5y daily OHLCV for AAPL/TSLA/NVDA/GME/AMC, caches to `data/raw/`.
 - `notebooks/01_eda.ipynb` — price charts, return distributions, rolling vol.
 
-**What surprised me:**
-- <fill in — e.g. "GME's max single-day return was X% on Y date" or "TSLA's vol is higher than I expected">
 
 **What I'm worried about:**
-- <fill in honestly — e.g. "5 years isn't a lot of training data for an LSTM" or "the eval set on Day 2 will be subjective">
+My eval set has only 1 AMC label vs 3 for AAPL. AMC will get fewer chances to score. Need to be careful interpreting AMC method performance — small denominator means high variance in precision/recall.
+
+
+5 of 10 labels involve macro shocks (COVID, tariff pause) that hit multiple tickers on the same day. If a method catches one, it likely catches all — F1 scores might look inflated.
 
 **Design decisions I made today:**
 - Used `auto_adjust=True` in yfinance so prices are split/dividend adjusted — avoids fake "anomalies" on ex-dividend days.
@@ -35,11 +36,13 @@
 - Tradeoff: methods flagging adjacent days (e.g. 2024-05-14 right after the GME peak) will be marked false positives even when catching the same event. Accepted because the alternative inflates GME's share of the eval set.
 
 **Hardest decision today:**
-- [Write yours — example: "Whether to label both 2021-01-26 (+93%) and 2021-01-27 (+135%) for GME. Picked only 2021-01-27 per the peak-only rule, even though both were genuinely anomalous days."]
+Whether to label both 2021-01-26 (+93%, 3.27x volume) and 2021-01-27 (+135% peak) for GME. Both were genuinely anomalous days with different news triggers. Picked only the peak per the labeling protocol, accepting that methods catching 1/26 will be marked false positives. Documented this tradeo
 
 **What surprised me:**
-- [Write yours — example: "GME volume_ratio on the Jan 27 peak was only 1.6x, because the rolling 20-day avg had already exploded during the buildup. Features that compare to recent history can MASK multi-day events."]
-- [And: "TSLA Twitter deal close (2022-10-28) didn't produce a notable single-day move — the market priced it in over weeks. I dropped this candidate from the eval set."]
+GME volume_ratio on the Jan 27 peak was only 1.59x — counterintuitively low. The rolling 20-day average had already exploded during the buildup, so today-vs-trailing-avg normalized away the actual spike. This is a real feature engineering blind spot — volume_ratio systematically underdetects multi-day events. Worth flagging on Day 13.
+
+
+The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an anomalous single-day move — biggest move in the window was only +5.3%, not anomalous for TSLA. I dropped this candidate from the eval set. Letting data veto candidates beats forcing labels to match my prior assumptions.
 
 **Design decisions:**
 - 7-year window instead of 5-year to capture GME/AMC 2021 squeezes.
