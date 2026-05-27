@@ -20,7 +20,7 @@ RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 
 def download_ticker(
     ticker: str,
-    period: str = "5y",
+    period: str = "7y",
     force: bool = False,
     max_retries: int = 3,
 ) -> pd.DataFrame:
