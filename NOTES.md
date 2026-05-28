@@ -91,3 +91,24 @@ The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an an
 - For Day 4 refactor: should every method return a Series of bool flags or anomaly *scores*? Scores enable PR curves later.
 - For classical ML methods (IF, LOF): switch from single-feature to multi-feature input (return + volatility + volume_ratio).
 
+
+## Day 4 — May 28, 2026
+
+**What I built:**
+- Refactored all methods to take `pd.DataFrame` instead of `pd.Series`. Single consistent interface: `fn(features, **params) -> pd.Series of bool`. Lets future methods (IF, LSTM AE) read multiple feature columns without changing the eval contract.
+- `scripts/run_all.py` — single script with a METHODS registry. Adding a new method on Day 5+ is a 2-line change here, no other code touched.
+- `results/all_methods.csv` and `results/summary.csv` — single source of truth that the README results table reads from.
+- README "Results" section v0 with the baseline filled in and IF/LOF/LSTM TBD rows.
+
+**Hardest decision today:**
+- Whether to pass DataFrames or to keep the Series interface and have IF/LOF compute features inside the method. Picked DataFrame in / Series out because (a) all methods share the same feature pipeline so duplicating feature code per method = bugs waiting to happen, (b) the LSTM autoencoder will need sliding windows of multiple features anyway.
+
+**What surprised me:**
+- Refactoring a 30-line method took 5 minutes. Wiring it through evaluate.py + save_baseline.py + run_all.py and re-verifying every number unchanged took 90% of the session. Plumbing dominates new code for systems work — a thing I underestimate every time.
+
+**Design decisions:**
+- METHODS registry as a list of (name, lambda) tuples instead of a dict. Order preserved for the comparison table.
+- One results CSV with per-ticker rows + one summary CSV with per-method aggregates. Both exist because README wants summary; failure analysis wants per-ticker.
+
+**Questions for tomorrow:**
+- For Isolation Forest contamination parameter: sweep {0.01, 0.02, 0.05} or pick one and defend it? Probably sweep, mirror the baseline pattern.
