@@ -15,6 +15,7 @@ import pandas as pd
 
 from src.evaluate import evaluate_method, aggregate_metrics
 from src.methods.statistical import zscore_flags, iqr_flags
+from src.methods.iforest import iforest_flags
 
 OUT_PATH = Path(__file__).parent.parent / "results" / "all_methods.csv"
 SUMMARY_PATH = Path(__file__).parent.parent / "results" / "summary.csv"
@@ -26,7 +27,9 @@ METHODS = [
     ("zscore_w30_t3.0", lambda df: zscore_flags(df, window=30, threshold=3.0)),
     ("zscore_w30_t3.5", lambda df: zscore_flags(df, window=30, threshold=3.5)),
     ("iqr_w30_k3.0",    lambda df: iqr_flags(df, window=30, k=3.0)),
-    # Day 5: ("iforest_c0.02", lambda df: iforest_flags(df, contamination=0.02)),
+    ("iforest_c0.01",   lambda df: iforest_flags(df, contamination=0.01)),
+    ("iforest_c0.02",   lambda df: iforest_flags(df, contamination=0.02)),
+    ("iforest_c0.05",   lambda df: iforest_flags(df, contamination=0.05)),
     # Day 6: ("lof_n20",       lambda df: lof_flags(df, n_neighbors=20)),
     # Day 9: ("lstm_ae_k2.5",  lambda df: lstm_ae_flags(df, threshold_k=2.5)),
 ]

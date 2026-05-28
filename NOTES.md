@@ -112,3 +112,32 @@ The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an an
 
 **Questions for tomorrow:**
 - For Isolation Forest contamination parameter: sweep {0.01, 0.02, 0.05} or pick one and defend it? Probably sweep, mirror the baseline pattern.
+
+
+## Day 5 — May 29, 2026
+
+**What I built:**
+- `src/methods/iforest.py` — Isolation Forest on multi-feature input (return, volatility_20d, volume_ratio). Per-ticker StandardScaler.
+- Plugged 3 IF configs (c=0.01, 0.02, 0.05) into `scripts/run_all.py`. Adding the method took ~5 minutes of work in run_all.py thanks to Day 4's refactor.
+
+**Prediction vs reality:**
+- Predicted IF would catch NVDA 2024-09-03 because multi-feature view would isolate the combo. WRONG at c=0.01 and c=0.02. Only c=0.05 catches it (and that's the config with 1.0 recall on everything).
+- Predicted IF would catch both TSLA labels. RIGHT at c=0.02 and looser; missed 2022-04-26 at the optimal c=0.01.
+
+**Best result so far:**
+- iforest_c0.01: F1=0.170 (vs prior best 0.133 from zscore_w30_t3.5). 28% relative F1 improvement. Same recall (0.8) but precision lifted from 0.073 to 0.095. The multi-feature view earns its keep.
+
+**Failure mode #3 identified:**
+- IF at optimal config misses NVDA 2024-09-03 AND TSLA 2022-04-26. Both labels share a pattern: ~10% moves on stocks whose distribution often produces moves that size. IF measures "how isolated is this point" — but a normal-sized move for that ticker isn't isolated, even if it has a clear news catalyst. Point-wise methods (z-score, IQR, IF) all share this blind spot in different forms. This is precisely the gap LSTM AE needs to close.
+
+**What surprised me:**
+- At c=0.05, IF achieves perfect recall (1.0) but F1 collapses to 0.046. The PR trade-off is steep — there's no contamination value that keeps both high.
+- Per-ticker performance is wildly different: AAPL F1=0.316, TSLA F1=0.100. Aggregate F1 hides this. The README should probably show per-ticker breakdowns too on Day 13.
+
+**Design decisions:**
+- StandardScaler fit per-ticker, not globally. Global would dilute AAPL's signal (small ranges) under GME's (huge ranges).
+- n_estimators=200 (the sklearn default of 100 produces noticeably noisier scores between runs).
+- random_state=42 for reproducibility.
+
+**Questions for tomorrow:**
+- LOF should behave differently because it scores points against local neighborhoods, not global isolation. Will it catch NVDA 2024-09-03 where IF didn't? Prediction: probably also no, for the same reason — the neighborhood IS volatile, so the point isn't locally anomalous either.

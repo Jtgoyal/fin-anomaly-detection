@@ -33,10 +33,12 @@ Aggregate metrics (micro-averaged across tickers):
 
 | Method | Precision | Recall | F1 | Flagged | Notes |
 |---|---|---|---|---|---|
-| z-score, t=3.0 | 0.049 | 0.90 | 0.092 | 187 | Best baseline recall |
-| z-score, t=3.5 | 0.073 | 0.80 | **0.133** | 112 | Best baseline F1 |
-| IQR, k=3.0 | 0.057 | 0.60 | 0.104 | 109 | Misses more labels than z-score |
-| Isolation Forest | TBD | TBD | TBD | — | Day 5 |
+| z-score, t=3.0 | 0.049 | 0.90 | 0.092 | 187 | Baseline recall winner |
+| z-score, t=3.5 | 0.073 | 0.80 | 0.133 | 112 | Best baseline F1 |
+| IQR, k=3.0 | 0.057 | 0.60 | 0.104 | 109 | Misses both TSLA labels |
+| **Isolation Forest, c=0.01** | **0.095** | **0.80** | **0.170** | **84** | **Best so far** — multi-feature beats z-score on precision |
+| Isolation Forest, c=0.02 | 0.054 | 0.90 | 0.101 | 166 | Catches the 9th label but precision drops |
+| Isolation Forest, c=0.05 | 0.024 | 1.00 | 0.046 | 416 | Perfect recall, precision collapses |
 | Local Outlier Factor | TBD | TBD | TBD | — | Day 6 |
 | LSTM Autoencoder | TBD | TBD | TBD | — | Day 8–9 |
 
@@ -46,3 +48,4 @@ Aggregate metrics (micro-averaged across tickers):
 - **IQR over-fires at textbook k=1.5:** flagged 448 days. Stock returns are fat-tailed, so percentile-based outlier thresholds designed for normal distributions over-fire.
 - **IQR misses both TSLA labels at k=3.0:** TSLA's return distribution has wide quartiles, making the k=3 bounds too loose to flag the labeled events. IQR's poor performance on TSLA drags its aggregate recall to 0.6.
 - **Eval set bias:** 10 labels skew toward news-driven extreme moves (squeezes, earnings surprises, macro shocks). Methods are likely benchmarked against easier anomalies than they would face in production.
+- **Isolation Forest blind spot:** at the optimal F1 config (c=0.01), IF misses NVDA 2024-09-03 and TSLA 2022-04-26 — the same NVDA label z-score missed, plus one TSLA label. Both share a pattern: large-but-not-extreme moves (~10%) in stocks whose return distribution often produces moves that size. Point-wise isolation methods can't distinguish "an anomaly in a calm stock" from "a normal move in a volatile stock." This motivates the temporal approach (LSTM autoencoder).
