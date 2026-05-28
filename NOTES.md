@@ -141,3 +141,42 @@ The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an an
 
 **Questions for tomorrow:**
 - LOF should behave differently because it scores points against local neighborhoods, not global isolation. Will it catch NVDA 2024-09-03 where IF didn't? Prediction: probably also no, for the same reason — the neighborhood IS volatile, so the point isn't locally anomalous either.
+
+
+## Day 6 
+
+**What I built:**
+- `src/methods/lof.py` — Local Outlier Factor on the same multi-feature input as IF, per-ticker StandardScaler.
+- Three LOF configs in `scripts/run_all.py` (n_neighbors=20 with c=0.01 and 0.02; n_neighbors=50 with c=0.02).
+
+**Best result:**
+- LOF n=20, c=0.01: F1=0.163, P=0.091, R=0.800. Caught 8/10.
+- Within 4% of IF's F1 (0.170). Multi-feature view dominates the choice of algorithm.
+
+**Prediction vs reality:**
+- Predicted LOF would also miss NVDA 2024-09-03 because the neighborhood IS volatile. CORRECT.
+- Predicted nothing about TSLA 2022-04-26. LOF also misses it.
+- Most striking: LOF and IF agree on EVERY one of the 4 NVDA + TSLA label cases. Same catches, same misses. Two algorithms with very different mechanisms, identical outcomes on the hard labels.
+
+**The headline finding:**
+- Three point-wise methods (z-score, IF, LOF) all miss the same two anomalies at their optimal configs: NVDA 2024-09-03 and TSLA 2022-04-26. The caught labels in those tickers (+24%, +23%) are large. The missed labels (-10%, -12%) are moderate.
+- Pattern: point-wise methods catch only the EXTREMES; they miss MODERATE-magnitude anomalies in volatile stocks.
+- This is a class-level limitation, not an algorithm choice. They all measure "is today unusual," not "is the pattern leading to today unusual." The LSTM autoencoder works on sequences, so it has a real shot at closing this gap.
+
+**Per-ticker performance (best LOF config):**
+- AAPL: F1=0.300 (3/3 caught) — easiest because anomalies stand out
+- GME:  F1=0.211 (2/2 caught)
+- AMC:  F1=0.105 (1/1 caught) — perfect recall but only 1 label = low F1 ceiling
+- NVDA: F1=0.100 (1/2 caught) — misses 2024-09-03
+- TSLA: F1=0.100 (1/2 caught) — misses 2022-04-26
+
+**Design decisions:**
+- LOF n_neighbors=20 (sklearn default). Tried n=50 — caught 1 more label but precision halved. Wider neighborhood = more context = catches clustered anomalies but also more false alarms.
+- Same per-ticker StandardScaler as IF, same rationale (AAPL ranges vs GME ranges).
+
+**Note on deployment:**
+- LOF is transductive — to score a new unseen day, you'd refit on the full training set + the new point. That's a real production limitation compared to IF, which fits once and can score new data instantly. Worth flagging in the eval doc.
+
+**Questions for Day 7 (failure analysis day):**
+- Are NVDA 2024-09-03 and TSLA 2022-04-26 the ONLY anomalies all 3 methods agree on missing, or are there others?
+- Should I write a dedicated FAILURE_ANALYSIS.md doc tomorrow to capture this systematically?

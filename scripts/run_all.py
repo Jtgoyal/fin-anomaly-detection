@@ -16,6 +16,7 @@ import pandas as pd
 from src.evaluate import evaluate_method, aggregate_metrics
 from src.methods.statistical import zscore_flags, iqr_flags
 from src.methods.iforest import iforest_flags
+from src.methods.lof import lof_flags
 
 OUT_PATH = Path(__file__).parent.parent / "results" / "all_methods.csv"
 SUMMARY_PATH = Path(__file__).parent.parent / "results" / "summary.csv"
@@ -30,8 +31,9 @@ METHODS = [
     ("iforest_c0.01",   lambda df: iforest_flags(df, contamination=0.01)),
     ("iforest_c0.02",   lambda df: iforest_flags(df, contamination=0.02)),
     ("iforest_c0.05",   lambda df: iforest_flags(df, contamination=0.05)),
-    # Day 6: ("lof_n20",       lambda df: lof_flags(df, n_neighbors=20)),
-    # Day 9: ("lstm_ae_k2.5",  lambda df: lstm_ae_flags(df, threshold_k=2.5)),
+    ("lof_n20_c0.01",   lambda df: lof_flags(df, n_neighbors=20, contamination=0.01)),
+    ("lof_n20_c0.02",   lambda df: lof_flags(df, n_neighbors=20, contamination=0.02)),
+    ("lof_n50_c0.02",   lambda df: lof_flags(df, n_neighbors=50, contamination=0.02)),
 ]
 
 

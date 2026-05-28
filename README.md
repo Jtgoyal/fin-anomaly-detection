@@ -25,7 +25,7 @@ Final comparison table with measured precision / recall / F1 on a hand-labeled e
 
 ## Repo layout
 
-## Results (preliminary — Day 4 of 14)
+## Results
 
 Evaluated against a hand-labeled set of 10 verified anomaly dates across 5 tickers (AAPL, AMC, GME, NVDA, TSLA). Matches use a ±1 trading day tolerance to account for after-hours news.
 
@@ -33,14 +33,27 @@ Aggregate metrics (micro-averaged across tickers):
 
 | Method | Precision | Recall | F1 | Flagged | Notes |
 |---|---|---|---|---|---|
-| z-score, t=3.0 | 0.049 | 0.90 | 0.092 | 187 | Baseline recall winner |
+| z-score, t=3.0 | 0.049 | 0.90 | 0.092 | 187 | Best baseline recall |
 | z-score, t=3.5 | 0.073 | 0.80 | 0.133 | 112 | Best baseline F1 |
 | IQR, k=3.0 | 0.057 | 0.60 | 0.104 | 109 | Misses both TSLA labels |
-| **Isolation Forest, c=0.01** | **0.095** | **0.80** | **0.170** | **84** | **Best so far** — multi-feature beats z-score on precision |
-| Isolation Forest, c=0.02 | 0.054 | 0.90 | 0.101 | 166 | Catches the 9th label but precision drops |
+| **Isolation Forest, c=0.01** | **0.095** | **0.80** | **0.170** | 105 | **Best F1 so far** |
+| Isolation Forest, c=0.02 | 0.054 | 0.90 | 0.101 | 166 | Catches 9/10 at cost of precision |
 | Isolation Forest, c=0.05 | 0.024 | 1.00 | 0.046 | 416 | Perfect recall, precision collapses |
-| Local Outlier Factor | TBD | TBD | TBD | — | Day 6 |
+| LOF, n=20, c=0.01 | 0.091 | 0.80 | 0.163 | 110 | Within 4% of IF |
+| LOF, n=20, c=0.02 | 0.047 | 0.80 | 0.089 | 170 | |
+| LOF, n=50, c=0.02 | 0.054 | 0.90 | 0.101 | 167 | Wider neighborhood catches 1 more label |
 | LSTM Autoencoder | TBD | TBD | TBD | — | Day 8–9 |
+
+### Key finding: a shared blind spot
+
+Three independent point-wise methods — z-score (rolling statistic), Isolation Forest (global feature-space isolation), and LOF (local-density comparison) — all miss the **same two labeled anomalies** at their optimal configurations:
+
+- **NVDA 2024-09-03** (−9.5% return, 1.4× volume) — the largest single-day market cap loss in history at the time
+- **TSLA 2022-04-26** (−12.2% return, 1.9× volume) — Tesla drops on Musk's Twitter acquisition announcement
+
+Both have moderate-magnitude returns (~10%) on stocks whose distributions frequently produce moves that size. Compare to the labels these methods *catch* (+24% NVDA on AI guidance, +23% TSLA on tariff pause): the caught events are simply larger in magnitude.
+
+**The structural limitation:** point-wise methods — whether based on rolling statistics, isolation paths, or density comparisons — cannot distinguish "a real anomaly in a stable stock" from "an ordinary day in a volatile stock." They measure *whether today is unusual*, not *whether the pattern leading up to today is unusual*. This motivates the temporal approach: the LSTM autoencoder (Day 8–9) operates on 30-day sequences, asking whether the entire recent shape is something the model has seen before. We will measure whether it closes the gap.
 
 ### Known limitations so far
 
