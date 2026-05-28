@@ -19,11 +19,8 @@ My eval set has only 1 AMC label vs 3 for AAPL. AMC will get fewer chances to sc
 - Cached CSVs but did NOT commit them — reproducible from source.
 - Tracked `data/labels/` even though `data/raw/` is gitignored — labels are irreplaceable.
 
-**Questions for tomorrow:**
-- How do I decide which days to hand-label as anomalies without leaking info into eval?
 
-
-## Day 2 — <today's date>
+## Day 2 —
 
 **What I built:**
 - `src/features.py` — 5 features per ticker: return, log_return, volatility_20d, volume_ratio, return_zscore (all using 20-day rolling window, trailing only).
@@ -39,7 +36,7 @@ My eval set has only 1 AMC label vs 3 for AAPL. AMC will get fewer chances to sc
 Whether to label both 2021-01-26 (+93%, 3.27x volume) and 2021-01-27 (+135% peak) for GME. Both were genuinely anomalous days with different news triggers. Picked only the peak per the labeling protocol, accepting that methods catching 1/26 will be marked false positives. Documented this tradeo
 
 **What surprised me:**
-GME volume_ratio on the Jan 27 peak was only 1.59x — counterintuitively low. The rolling 20-day average had already exploded during the buildup, so today-vs-trailing-avg normalized away the actual spike. This is a real feature engineering blind spot — volume_ratio systematically underdetects multi-day events. Worth flagging on Day 13.
+GME volume_ratio on the Jan 27 peak was only 1.59x — counterintuitively low. The rolling 20-day average had already exploded during the buildup, so today-vs-trailing-avg normalized away the actual spike. This is a real feature engineering blind spot — volume_ratio systematically underdetects multi-day events.
 
 
 The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an anomalous single-day move — biggest move in the window was only +5.3%, not anomalous for TSLA. I dropped this candidate from the eval set. Letting data veto candidates beats forcing labels to match my prior assumptions.
@@ -60,7 +57,7 @@ The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an an
   Accepted because the alternative (label every day of a run) would let GME dominate the eval set.
 
 
-## Day 3 — May 27, 2026
+## Day 3 —
 
 **What I built:**
 - `src/methods/statistical.py` — z-score and IQR with trailing 30-day windows, today excluded from its own window via `.shift(1)`.
@@ -93,3 +90,4 @@ The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an an
 **Questions for tomorrow:**
 - For Day 4 refactor: should every method return a Series of bool flags or anomaly *scores*? Scores enable PR curves later.
 - For classical ML methods (IF, LOF): switch from single-feature to multi-feature input (return + volatility + volume_ratio).
+
