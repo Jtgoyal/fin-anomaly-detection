@@ -101,7 +101,7 @@ def evaluate_method(
     rows = []
     for ticker in tickers:
         df = pd.read_csv(PROCESSED_DIR / f"{ticker}.csv", parse_dates=["Date"], index_col="Date")
-        flags = method_fn(df["return"])
+        flags = method_fn(df)
         labels = pd.DatetimeIndex(gt[gt["ticker"] == ticker]["date"])
         metrics = score_one_ticker(flags, labels, tolerance_days=tolerance_days)
         metrics["method"] = method_name
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     print("Evaluating z-score (window=30, threshold=3.0)")
     print("=" * 60)
     results = evaluate_method(
-        lambda r: zscore_flags(r, window=30, threshold=3.0),
+       lambda df: zscore_flags(df, window=30, threshold=3.0),
         method_name="zscore_w30_t3",
     )
     print(results.to_string(index=False))
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     print("Evaluating IQR (window=30, k=3.0)")
     print("=" * 60)
     results = evaluate_method(
-        lambda r: iqr_flags(r, window=30, k=3.0),
+        lambda df: iqr_flags(df, window=30, k=3.0),
         method_name="iqr_w30_k3",
     )
     print(results.to_string(index=False))

@@ -15,11 +15,11 @@ def run_baseline():
     output = {}
 
     configs = [
-        ("zscore_w30_t2.5", lambda r: zscore_flags(r, 30, 2.5)),
-        ("zscore_w30_t3.0", lambda r: zscore_flags(r, 30, 3.0)),
-        ("zscore_w30_t3.5", lambda r: zscore_flags(r, 30, 3.5)),
-        ("iqr_w30_k1.5", lambda r: iqr_flags(r, 30, 1.5)),
-        ("iqr_w30_k3.0", lambda r: iqr_flags(r, 30, 3.0)),
+        ("zscore_w30_t2.5", lambda df: zscore_flags(df, 30, 2.5)),
+        ("zscore_w30_t3.0", lambda df: zscore_flags(df, 30, 3.0)),
+        ("zscore_w30_t3.5", lambda df: zscore_flags(df, 30, 3.5)),
+        ("iqr_w30_k1.5", lambda df: iqr_flags(df, 30, 1.5)),
+        ("iqr_w30_k3.0", lambda df: iqr_flags(df, 30, 3.0)),
     ]
 
     for name, fn in configs:
