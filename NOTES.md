@@ -231,3 +231,46 @@ If LSTM catches Sept 3, that's evidence the temporal hypothesis works. If it doe
 - Sliding window length: 30 days standard, but should I try 20 or 60?
 - Architecture: 2-layer LSTM with hidden=16 (per the original plan). If training is slow, drop to hidden=8.
 - Train/test split: by date (last 20% as test) or by ticker? Probably by date — each ticker gets its own train history and test period.
+
+
+## Day 8
+
+**What I built:**
+- `src/methods/lstm_ae.py` — LSTM autoencoder (encoder + decoder, hidden=16, 1 layer, batch_first=True).
+- Training loop with Adam, MSE loss, early stopping (patience=5), 80/20 temporal train/val split.
+- Trained 5 per-ticker models, saved to `models/lstm_ae_{ticker}.pt` (gitignored).
+- Per-ticker StandardScaler fit on train only (no val leakage), stats saved alongside weights.
+
+**Total training time:** 35.5s on CPU for all 5 tickers combined.
+
+**Tuning attempt that taught me something:**
+- First run with default hidden=16: AAPL converged at val_loss=0.888 (18% reduction from initial).
+- Suspected underfitting. Bumped to hidden=32 → AAPL converged at val_loss=0.891 (same).
+- Doubled the model, got identical loss. Capacity was not the bottleneck.
+- Initially concluded "daily returns are noise-dominated, hitting irreducible floor."
+- **Then trained all 5 tickers and was wrong.** Val loss ranges 0.21 (AMC) to 0.89 (AAPL).
+
+**The actual finding:**
+- AMC and GME (meme stocks): val MSE 0.21 and 0.38. Highly learnable structure.
+- AAPL: val MSE 0.89. Essentially noise floor — efficient pricing, near random-walk returns.
+- TSLA, NVDA in between.
+- The LSTM learns where the structure is, not where the volatility is.
+- This is OPPOSITE intuition — calm stocks (AAPL) have less learnable structure than volatile ones (AMC/GME), because efficient large-caps approach random-walk behavior at daily frequency.
+
+**Prediction for Day 9:**
+- LSTM should dominate IF on AMC and GME (clean baseline → anomalies stick out).
+- LSTM may underperform IF on AAPL (everything reconstructs poorly → anomaly signal drowns in noise).
+- This would invert the classical-methods pattern (where AAPL was the "easiest" ticker).
+- If this holds, the project narrative becomes ticker-dependent method selection, not single-best-method.
+
+**Design decisions:**
+- hidden=16, 1 layer: small enough to train fast on CPU, ~3K parameters. Capacity test (32) confirmed 16 is sufficient.
+- 30-day window: matches the rolling windows used by z-score / IF, apples-to-apples.
+- 2 features (return, volume_ratio): skipped volatility_20d to avoid correlation with rolling return variance.
+- Temporal split (no shuffling): val period is the most recent 20% of data. Realistic for time series.
+- Early stopping with patience=5: stopped between epochs 28-50 across tickers, no overfitting observed.
+
+**Questions for Day 9:**
+- What threshold to use? Mean + k*std of train reconstruction errors? Per-window, per-ticker?
+- Flag the END date of each high-error window (the day that "broke" the reconstruction)?
+- Will my LSTM-vs-classical prediction hold per-ticker?
