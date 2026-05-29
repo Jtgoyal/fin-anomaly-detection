@@ -27,22 +27,30 @@ Final comparison table with measured precision / recall / F1 on a hand-labeled e
 
 ## Results
 
-Evaluated against a hand-labeled set of 10 verified anomaly dates across 5 tickers (AAPL, AMC, GME, NVDA, TSLA). Matches use a ±1 trading day tolerance to account for after-hours news.
+Evaluated against a hand-labeled set of 13 verified anomaly dates across 5 tickers (AAPL, AMC, GME, NVDA, TSLA). Matches use a ±1 trading day tolerance to account for after-hours news.
 
 Aggregate metrics (micro-averaged across tickers):
 
 | Method | Precision | Recall | F1 | Flagged | Notes |
 |---|---|---|---|---|---|
-| z-score, t=3.0 | 0.049 | 0.90 | 0.092 | 187 | Best baseline recall |
-| z-score, t=3.5 | 0.073 | 0.80 | 0.133 | 112 | Best baseline F1 |
-| IQR, k=3.0 | 0.057 | 0.60 | 0.104 | 109 | Misses both TSLA labels |
-| **Isolation Forest, c=0.01** | **0.095** | **0.80** | **0.170** | 105 | **Best F1 so far** |
-| Isolation Forest, c=0.02 | 0.054 | 0.90 | 0.101 | 166 | Catches 9/10 at cost of precision |
-| Isolation Forest, c=0.05 | 0.024 | 1.00 | 0.046 | 416 | Perfect recall, precision collapses |
-| LOF, n=20, c=0.01 | 0.091 | 0.80 | 0.163 | 110 | Within 4% of IF |
-| LOF, n=20, c=0.02 | 0.047 | 0.80 | 0.089 | 170 | |
-| LOF, n=50, c=0.02 | 0.054 | 0.90 | 0.101 | 167 | Wider neighborhood catches 1 more label |
+| z-score, t=3.0 | 0.065 | 0.923 | 0.121 | 187 | Best baseline recall |
+| z-score, t=3.5 | 0.100 | 0.846 | 0.179 | 112 | Best baseline F1 |
+| IQR, k=3.0 | 0.086 | 0.692 | 0.152 | 109 | Misses both TSLA labels |
+| **Isolation Forest, c=0.01** | **0.131** | **0.846** | **0.227** | 105 | **Best F1** |
+| Isolation Forest, c=0.02 | 0.071 | 0.923 | 0.133 | 166 | |
+| Isolation Forest, c=0.05 | 0.031 | 1.000 | 0.060 | 416 | Perfect recall, precision collapses |
+| LOF, n=20, c=0.01 | 0.125 | 0.846 | 0.218 | 110 | Within 4% of IF |
+| LOF, n=20, c=0.02 | 0.065 | 0.846 | 0.121 | 170 | |
+| LOF, n=50, c=0.02 | 0.071 | 0.923 | 0.133 | 167 | Wider neighborhood catches 1 more label |
 | LSTM Autoencoder | TBD | TBD | TBD | — | Day 8–9 |
+
+See **[FAILURE_ANALYSIS.md](./FAILURE_ANALYSIS.md)** for the structured breakdown of which methods catch which labels and why.
+
+### Key findings so far
+
+- **One universally hard label.** NVDA 2024-09-03 (−9.5%, largest single-day market cap loss in history at the time) is missed by all four point-wise methods at their best configurations. The August 2024 NVDA volatility had already raised the local baseline, so adaptive methods became blind to the actual event.
+- **Method-specific complementarity.** Z-score catches TSLA 2022-04-26 (Twitter announcement) that IF and LOF both miss. IF and LOF catch AAPL 2020-03-16 (COVID crash) that statistical methods both miss. Methods are *not* strictly ordered — they have complementary failure modes. A z-score + IF ensemble would catch 12/13 labels.
+- **TSLA is the hardest ticker.** Highest F1 variance across methods (std 0.074). IQR scores F1=0.0 on TSLA. Method choice matters most for this ticker.
 
 ### Key finding: a shared blind spot
 

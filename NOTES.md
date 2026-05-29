@@ -180,3 +180,54 @@ The Twitter-deal-close candidate (TSLA 2022-10-28) didn't actually produce an an
 **Questions for Day 7 (failure analysis day):**
 - Are NVDA 2024-09-03 and TSLA 2022-04-26 the ONLY anomalies all 3 methods agree on missing, or are there others?
 - Should I write a dedicated FAILURE_ANALYSIS.md doc tomorrow to capture this systematically?
+
+
+## Day 7 — May 31, 2026
+
+**What I built:**
+- `scripts/analyze_failures.py` — diagnostic script producing 3 tables: per-label catch matrix, per-ticker difficulty, and false-positive overlap.
+- `FAILURE_ANALYSIS.md` — structured failure analysis doc cataloging where each method wins and loses, with one universally-hard label identified and complementary strengths documented.
+
+**Key methodological moment:**
+- The FP overlap script surfaced 3 dates that all 4 methods flagged but weren't in my ground truth: AMC 2021-06-02, NVDA 2024-02-22, NVDA 2025-04-09. Each had a verified news catalyst, so I added them to the label set (now 13, was 10).
+- This is methodologically defensible only because each new label was verified against an independent news source — not "where models agreed." I wrote this distinction into FAILURE_ANALYSIS.md so it's explicit.
+
+**Eval set after refinement:**
+- 13 labels across 5 tickers .
+- NVDA went from 2 → 4 labels, AMC from 1 → 2. AAPL/GME/TSLA unchanged.
+- Years now span 2020-2025 (was 2020-2025 but lighter on 2024-2025).
+
+**Updated leaderboard (13 labels):**
+- iforest_c0.01: F1=0.227 (was 0.170 on 10 labels)
+- lof_n20_c0.01: F1=0.218 (was 0.163)
+- zscore_t3.5: F1=0.179 (was 0.133)
+- iqr_k3.0: F1=0.152 (was 0.104)
+- iforest_c0.05: still perfect recall (1.0), F1=0.060
+
+Every method's F1 improved because 3 previously-counted false positives became true positives. Relative ordering held (IF still #1, LOF still #2). Reassuring — the additions didn't reshuffle the table.
+
+**Findings I got wrong yesterday:**
+- Yesterday I said "z-score, IF, LOF all miss NVDA 2024-09-03 AND TSLA 2022-04-26 — a class-level failure mode." This was wrong on the second label. **Z-score actually catches TSLA 2022-04-26**; only IF and LOF miss it. The truly universal hard case is just NVDA 2024-09-03.
+- I implied ML strictly dominates statistical methods. Actually wrong — on TSLA 2022-04-26, statistical wins. On AAPL 2020-03-16 (COVID), ML wins. They're complementary, not ordered. An ensemble of z-score + IF would catch 12/13 labels.
+
+**Per-ticker difficulty (updated):**
+- NVDA 0.340 (was 0.129 — biggest jump, because adding 2 labels the methods catch lifted the mean)
+- AAPL 0.253 (unchanged)
+- GME 0.174 (unchanged)
+- AMC 0.169 (was 0.088 — also jumped on added label)
+- TSLA 0.095 (unchanged — no labels added; still the hardest ticker)
+
+**Decision I'm leaving on the table:**
+- 38 dates remain flagged by 3+ methods but unlabeled. Spot-checks suggest some are real anomalies (e.g. AMC 2024-05-13 Roaring Kitty sympathy rally, TSLA 2019-10-24 earnings). I'm NOT labeling more — moving the goalposts twice looks like fishing. Documented as future work.
+
+**Predictions for LSTM AE (Days 8-9):**
+1. NVDA 2024-09-03 — temporal context might distinguish "calm regime → sudden drop" patterns. Maybe catches it.
+2. TSLA 2022-04-26 — surrounding context was calm. Sequence-aware method should catch this easily.
+3. AAPL 2020-03-16 — already caught by IF/LOF. LSTM should too.
+
+If LSTM catches Sept 3, that's evidence the temporal hypothesis works. If it doesn't, the limitation is deeper than method class.
+
+**Questions for tomorrow (Day 8 starts the LSTM):**
+- Sliding window length: 30 days standard, but should I try 20 or 60?
+- Architecture: 2-layer LSTM with hidden=16 (per the original plan). If training is slow, drop to hidden=8.
+- Train/test split: by date (last 20% as test) or by ticker? Probably by date — each ticker gets its own train history and test period.

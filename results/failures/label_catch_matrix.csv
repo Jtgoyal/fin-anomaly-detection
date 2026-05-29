@@ -1,0 +1,14 @@
+ticker,date,return_%,vol_ratio,event,zscore_t3.5,iqr_k3.0,iforest_c0.01,lof_n20_c0.01,n_methods_caught
+GME,2021-01-27,134.84,1.59,Short squeeze peak driven by r/WallStreetBets,True,True,True,True,4
+GME,2024-05-13,74.4,8.6,Roaring Kitty (Keith Gill) returns to social media,True,True,True,True,4
+TSLA,2022-04-26,-12.18,1.93,Tesla drops after Elon Musk Twitter acquisition an,True,False,False,False,1
+AMC,2021-01-27,301.21,6.95,AMC sympathy short squeeze with GameStop driven by,True,True,True,True,4
+NVDA,2023-05-25,24.37,3.3,Q1 FY2024 earnings — $11B revenue guidance vs $7B ,True,True,True,True,4
+AAPL,2020-03-16,-12.86,1.26,Apple drops in pandemic-driven market crash; Fed e,False,False,True,True,2
+NVDA,2024-09-03,-9.53,1.36,Largest single-day market cap loss in history (~$2,False,False,False,False,0
+TSLA,2025-04-09,22.69,1.5,Trump announces 90-day tariff pause; Nasdaq bigges,True,False,True,True,3
+AAPL,2025-04-09,15.33,2.58,Trump announces 90-day tariff pause; tech rally li,True,True,True,True,4
+AAPL,2020-07-31,10.47,2.68,Q3 2020 earnings beat + 4-for-1 stock split announ,True,True,True,True,4
+AMC,2021-06-02,95.22,3.31,AMC second-leg short squeeze peak — June 2021 reta,True,True,True,True,4
+NVDA,2024-02-22,16.4,1.64,Q4 FY2024 earnings — revenue $22.1B vs $20.4B expe,True,True,True,True,4
+NVDA,2025-04-09,18.72,1.92,Trump announces 90-day tariff pause; tech rally li,True,True,True,True,4
