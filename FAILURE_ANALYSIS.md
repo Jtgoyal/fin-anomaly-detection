@@ -88,3 +88,59 @@ Three predictions to test:
 2. **TSLA 2022-04-26 prediction:** the LSTM should catch this because the surrounding context is calm — TSLA had been steady for weeks before the Twitter announcement, then dropped 12%. A sequence-aware method should see that shape as anomalous even when the point itself isn't extreme.
 
 3. **AAPL 2020-03-16 prediction:** already caught by IF and LOF. LSTM should also catch it. If LSTM misses something IF catches, the project's narrative becomes more interesting (specialization, not strict ordering).
+
+
+## Finding 6 — LSTM Autoencoder: Negative Result
+
+**Prediction (Day 8):** I trained an LSTM autoencoder on 30-day windows of (return, volume_ratio), hypothesizing that temporal pattern recognition would catch the moderate-magnitude anomalies that point-wise methods miss — specifically the labels in the "universal blind spot" cluster (NVDA 2024-09-03, TSLA 2022-04-26).
+
+**Result (Day 9):** The hypothesis was wrong. Across two thresholding strategies (mean+k·σ and percentile), the LSTM's best F1 was 0.038 — versus IF's 0.227. The LSTM caught 7/13 labels at its most permissive setting (pct=0.05); IF caught 11/13.
+
+### What the LSTM specifically misses
+
+| Label | Magnitude | All other methods | LSTM-pct=0.05 |
+|---|---|---|---|
+| NVDA 2023-05-25 (Q1 AI earnings) | +24% | catches | misses |
+| NVDA 2024-02-22 (Q4 FY2024 earnings) | +16% | catches | misses |
+| NVDA 2025-04-09 (tariff pause) | +19% | catches | misses |
+| AAPL 2020-07-31 (Q3 + split) | +10% | catches | misses |
+| TSLA 2022-04-26 (Twitter) | −12% | z-score catches | misses |
+| NVDA 2024-09-03 (universal blind spot) | −10% | all miss | misses |
+
+LSTM catches one label others miss: AAPL 2020-03-16 (COVID, −13%). On net, LSTM loses 5 labels and gains 1 versus the multi-method consensus.
+
+### Diagnosis: mean collapse
+
+The threshold sweep behaves diagnostically. From `lstm_ae_k2.0` (most permissive, MSE-based) to `lstm_ae_k3.0` (strictest), the catches are *identical* — loosening the threshold from 2σ to 3σ does not add any labels. This means the missed labels' reconstruction errors are not just slightly below threshold; they are buried in the same range as normal-day errors. The model is not "trying and failing to flag" these events. It is reconstructing them about as well as random days.
+
+This is consistent with the Day 8 capacity test (hidden=16 vs hidden=32 gave identical val loss). The model is at its irreducible loss floor — but that floor is well above zero (val MSE 0.21–0.89 by ticker). The latent space has converged to approximating the mean of standardized features rather than encoding sequence patterns. Reconstruction error therefore reduces to `(value − mean)²` per timestep, which is effectively a noisier version of point-wise magnitude detection — worse than z-score because of the additional model variance.
+
+### Per-ticker effect
+
+LSTM degrades every ticker's mean F1 when included in the analysis:
+
+| Ticker | Mean F1 (4-method) | Mean F1 (5-method, +LSTM) | Δ |
+|---|---|---|---|
+| NVDA | 0.340 | 0.272 | −0.068 |
+| AAPL | 0.253 | 0.212 | −0.041 |
+| GME | 0.174 | 0.149 | −0.025 |
+| AMC | 0.169 | 0.144 | −0.025 |
+| TSLA | 0.095 | 0.081 | −0.014 |
+
+NVDA suffers most: LSTM catches 0/4 NVDA labels. The other 3 methods catch 3/4 each. LSTM is structurally NVDA-blind.
+
+### Investigation: percentile thresholding
+
+I tried percentile-based thresholding (flag top N% of windows by reconstruction error) instead of mean+k·σ, hypothesizing that training-period error distributions might differ from validation-period distributions due to the 2024-2025 volatility regime. The percentile approach improved recall (from 0.231 to 0.538 at flag_rate=0.05) but did not improve F1 — additional flags were almost entirely false positives. This confirms the model's reconstruction errors do not usefully rank windows. The signal-to-noise ratio in the error sequence is insufficient regardless of how the threshold is chosen.
+
+### What this means for the project
+
+This is a negative result, documented as such. Three honest takeaways:
+
+1. **Sequence-modeling didn't help on this data.** Daily returns at this resolution have too little learnable temporal structure for a reconstruction-loss objective to extract.
+
+2. **The classical methods are sufficient.** Isolation Forest at F1=0.227 is the best the project achieves. The complementarity finding (z-score + IF together catch 12/13 labels) is the strongest result.
+
+3. **What might work that wasn't tried:** (a) sub-daily frequency data where intraday momentum patterns exist; (b) a predictive loss (predict next-day return) instead of reconstruction — a model that has to predict tomorrow from history might surface anomalies as prediction failures even when reconstruction is fine; (c) a different architecture entirely (transformer with positional encoding might capture rarer patterns than LSTM).
+
+These are future-work items, not project failures.

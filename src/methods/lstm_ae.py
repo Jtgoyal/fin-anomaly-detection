@@ -238,6 +238,159 @@ def train_one_ticker(
     }
 
 
+# ---------------- Inference (Day 9) ----------------
+
+def load_trained_model(ticker: str) -> tuple[LSTMAutoencoder, dict, dict]:
+    """Load a saved per-ticker model. Returns (model in eval mode, stats, config)."""
+    model_path = MODELS_DIR / f"lstm_ae_{ticker}.pt"
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"No trained model for {ticker} at {model_path}. "
+            f"Run `python -m src.methods.lstm_ae` (Day 8 training) first."
+        )
+    checkpoint = torch.load(model_path, weights_only=False)
+    hidden_size = checkpoint["config"]["hidden_size"]
+    model = LSTMAutoencoder(hidden_size=hidden_size)
+    model.load_state_dict(checkpoint["state_dict"])
+    model.eval()
+    return model, checkpoint["stats"], checkpoint["config"]
+
+
+def compute_window_errors(model: LSTMAutoencoder, X: np.ndarray) -> np.ndarray:
+    """Per-window reconstruction MSE. Input X already standardized. Returns 1D array of length n_windows."""
+    model.eval()
+    with torch.no_grad():
+        x_tensor = torch.from_numpy(X.astype(np.float32))
+        recon = model(x_tensor).numpy()
+    # MSE per window: mean across (timesteps × features)
+    return ((X - recon) ** 2).mean(axis=(1, 2))
+
+
+def lstm_ae_flags(
+    features: pd.DataFrame,
+    threshold_k: float = 2.5,
+    val_frac: float = 0.2,
+) -> pd.Series:
+    """
+    Flag anomalies using a pre-trained LSTM autoencoder.
+
+    Strategy:
+        1. Load the model trained for THIS ticker (Day 8 output).
+        2. Slice features into 30-day windows, standardize using saved train stats.
+        3. Compute reconstruction MSE for each window.
+        4. Threshold = mean_train_error + threshold_k * std_train_error.
+        5. Flag the END date of any window whose error > threshold.
+
+    Args:
+        features: per-ticker feature DataFrame (must have 'return' and 'volume_ratio').
+                  Per-ticker because evaluate.py calls us once per ticker.
+        threshold_k: how many SDs above train-mean to count as anomaly.
+        val_frac: must match training value (default 0.2). Used to split errors into
+                  train_errors (for threshold calibration) and full errors (for flagging).
+
+    Returns:
+        pd.Series of bool indexed by features.index. True where the
+        END date of the window had reconstruction error above the threshold.
+
+    Notes on the design choice (see NOTES.md Day 9):
+        We flag the END date of high-error windows ("the day that broke the pattern"),
+        not the middle day and not the per-timestep maximum. This matches the
+        sequence-level framing — we're not detecting point outliers, we're detecting
+        windows that don't look like training patterns.
+    """
+    # Identify ticker from the DataFrame's filename context — fall back: detect by trying each model.
+    # Cleaner: evaluate.py knows the ticker, but our interface contract is (df) -> series.
+    # Solution: store the ticker on the dataframe as df.attrs, set by evaluate.py.
+    ticker = features.attrs.get("ticker")
+    if ticker is None:
+        raise ValueError(
+            "lstm_ae_flags requires features.attrs['ticker'] to be set. "
+            "evaluate.py needs to set this when loading per-ticker data."
+        )
+
+    # Load trained model + its saved stats
+    model, stats, config = load_trained_model(ticker)
+    window_size = config["window_size"]
+    feature_cols = config["feature_cols"]
+    mean = np.array(stats["mean"], dtype=np.float32)
+    std = np.array(stats["std"], dtype=np.float32)
+
+    # Build windows
+    X_raw, end_dates = make_windows(features, window_size=window_size)
+    X = (X_raw - mean) / std
+
+    # Compute per-window errors
+    all_errors = compute_window_errors(model, X)
+
+    # Calibrate threshold on the TRAIN portion only (same split as training)
+    n_train = int(len(all_errors) * (1 - val_frac))
+    train_errors = all_errors[:n_train]
+    threshold = train_errors.mean() + threshold_k * train_errors.std()
+
+    # Flag end dates of high-error windows
+    high_error_mask = all_errors > threshold
+
+    flags = pd.Series(False, index=features.index)
+    for is_high, end_date in zip(high_error_mask, end_dates):
+        if is_high and end_date in flags.index:
+            flags.loc[end_date] = True
+
+    return flags
+
+
+def lstm_ae_flags_pct(
+    features: pd.DataFrame,
+    flag_rate: float = 0.02,
+    use_full_window: bool = True,
+) -> pd.Series:
+    """
+    Variant of lstm_ae_flags that uses a PERCENTILE threshold instead of mean+k*std.
+
+    Rationale: train-period errors may be systematically smaller than test-period
+    errors (different volatility regimes), so a threshold calibrated on train.mean+k*std
+    can over-flag the test period. Percentile thresholding is robust to that.
+
+    Args:
+        features: per-ticker DataFrame with features.attrs['ticker'] set.
+        flag_rate: target fraction of windows to flag (mirror's IF's contamination).
+                   0.02 = flag top 2% most anomalous windows.
+        use_full_window: if True, calibrate threshold using errors on BOTH train and
+                         val windows together. False = train errors only (matches
+                         lstm_ae_flags behavior, exposes the regime-shift problem).
+    """
+    ticker = features.attrs.get("ticker")
+    if ticker is None:
+        raise ValueError("features.attrs['ticker'] must be set")
+
+    model, stats, config = load_trained_model(ticker)
+    window_size = config["window_size"]
+    feature_cols = config["feature_cols"]
+    mean = np.array(stats["mean"], dtype=np.float32)
+    std = np.array(stats["std"], dtype=np.float32)
+
+    X_raw, end_dates = make_windows(features, window_size=window_size)
+    X = (X_raw - mean) / std
+    all_errors = compute_window_errors(model, X)
+
+    # Calibrate threshold from errors
+    if use_full_window:
+        # Use all errors — robust to train/test regime shift
+        threshold = np.quantile(all_errors, 1 - flag_rate)
+    else:
+        # Use only train errors — original (broken) behavior
+        n_train = int(len(all_errors) * 0.8)
+        threshold = np.quantile(all_errors[:n_train], 1 - flag_rate)
+
+    high_error_mask = all_errors > threshold
+
+    flags = pd.Series(False, index=features.index)
+    for is_high, end_date in zip(high_error_mask, end_dates):
+        if is_high and end_date in flags.index:
+            flags.loc[end_date] = True
+
+    return flags
+
+
 # ---------------- Smoke test ----------------
 
 if __name__ == "__main__":

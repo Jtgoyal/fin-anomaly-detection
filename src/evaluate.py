@@ -101,6 +101,7 @@ def evaluate_method(
     rows = []
     for ticker in tickers:
         df = pd.read_csv(PROCESSED_DIR / f"{ticker}.csv", parse_dates=["Date"], index_col="Date")
+        df.attrs["ticker"] = ticker
         flags = method_fn(df)
         labels = pd.DatetimeIndex(gt[gt["ticker"] == ticker]["date"])
         metrics = score_one_ticker(flags, labels, tolerance_days=tolerance_days)

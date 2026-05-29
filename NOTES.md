@@ -274,3 +274,41 @@ If LSTM catches Sept 3, that's evidence the temporal hypothesis works. If it doe
 - What threshold to use? Mean + k*std of train reconstruction errors? Per-window, per-ticker?
 - Flag the END date of each high-error window (the day that "broke" the reconstruction)?
 - Will my LSTM-vs-classical prediction hold per-ticker?
+
+
+## Day 9 
+
+**What I built:**
+- `lstm_ae_flags()` in lstm_ae.py — loads trained model per ticker, computes window MSE, flags END date of high-error windows.
+- `lstm_ae_flags_pct()` — alternative with percentile-based threshold (instead of mean+k·σ) to address potential train/val regime shift.
+- Added 5 LSTM configs to run_all.py registry (3 mean+k·σ + 2 percentile).
+- Updated analyze_failures.py to include LSTM in the catch matrix and per-ticker difficulty.
+
+**Day 8 prediction verification: WRONG.**
+- I predicted LSTM would dominate AMC/GME (lowest val MSE) and underperform AAPL (highest val MSE).
+- Reality: LSTM was uniformly weak on every ticker. AMC F1=0.064, GME F1=0.044, AAPL F1=0.057 — all in the same poor range. Per-ticker val MSE did not predict per-ticker detection performance.
+- The ticker-dependent learnability finding from Day 8 was real (val MSE varies 4x) but didn't translate into the anomaly detection task. Good lesson — learning to reconstruct ≠ learning to detect outliers.
+
+**The honest result:**
+- LSTM best F1: 0.038 (k=3.0) or 0.032 with better recall (pct=0.05).
+- IF best F1: 0.227 — 6x better.
+- LSTM catches 7/13 at most permissive; IF catches 11/13.
+- LSTM specifically misses ALL 4 NVDA labels — structural blind spot on the ticker with most labels.
+
+**Diagnosis: mean collapse.**
+- k=2.0, k=2.5, k=3.0 catch the SAME labels. Loosening doesn't help because missed labels' errors are buried in noise, not just narrowly below threshold.
+- Combined with Day 8 hidden=16 vs 32 giving identical val loss → the model converged to predicting the standardized mean. Reconstruction error reduces to (value − mean)² — basically z-score with extra steps.
+- Daily return sequences at the autoencoder's representational scale don't contain enough learnable structure to support reconstruction-based anomaly detection.
+
+**Methodological note on threshold investigation:**
+- Spent ~45 minutes testing percentile vs mean+k·σ thresholding. Percentile improved recall (0.23 → 0.54) but precision stayed flat — additional flags were noise. Confirms threshold isn't the bottleneck.
+- Both variants documented in FAILURE_ANALYSIS.md Finding 6 — showing the alternative was tried strengthens the negative result.
+
+**What now goes in the README narrative:**
+- "Isolation Forest won. LSTM lost decisively. Here's exactly why, and what I'd try differently next time."
+- This is more credible than "deep learning won" — and it shows engineering judgment.
+
+**Questions for Day 10 (LSTM failure analysis day):**
+- Currently it's a buffer day in the plan. Use it to write a 2-3 paragraph deeper post-mortem in NOTES.md about what "mean collapse" means architecturally, and what alternative losses (contrastive, predictive) might address it.
+- Or skip to Day 11 (Streamlit) and treat Finding 6 as enough on its own.
+- Probably skip — the analysis is already strong enough.

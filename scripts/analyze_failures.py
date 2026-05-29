@@ -18,6 +18,7 @@ from src.evaluate import load_ground_truth
 from src.methods.statistical import zscore_flags, iqr_flags
 from src.methods.iforest import iforest_flags
 from src.methods.lof import lof_flags
+from src.methods.lstm_ae import lstm_ae_flags_pct
 
 ROOT = Path(__file__).parent.parent
 PROC = ROOT / "data" / "processed"
@@ -25,10 +26,11 @@ OUT_DIR = ROOT / "results" / "failures"
 
 # Best config per method family — what we actually want to characterize
 METHODS = [
-    ("zscore_t3.5",    lambda df: zscore_flags(df, window=30, threshold=3.5)),
-    ("iqr_k3.0",       lambda df: iqr_flags(df, window=30, k=3.0)),
-    ("iforest_c0.01",  lambda df: iforest_flags(df, contamination=0.01)),
-    ("lof_n20_c0.01",  lambda df: lof_flags(df, n_neighbors=20, contamination=0.01)),
+    ("zscore_t3.5",     lambda df: zscore_flags(df, window=30, threshold=3.5)),
+    ("iqr_k3.0",        lambda df: iqr_flags(df, window=30, k=3.0)),
+    ("iforest_c0.01",   lambda df: iforest_flags(df, contamination=0.01)),
+    ("lof_n20_c0.01",   lambda df: lof_flags(df, n_neighbors=20, contamination=0.01)),
+    ("lstm_ae_pct0.05", lambda df: lstm_ae_flags_pct(df, flag_rate=0.05)),   # NEW
 ]
 
 
@@ -43,6 +45,7 @@ def label_catch_matrix() -> pd.DataFrame:
     flags_cache = {}
     for ticker in sorted(gt["ticker"].unique()):
         df = pd.read_csv(PROC / f"{ticker}.csv", parse_dates=["Date"], index_col="Date")
+        df.attrs["ticker"] = ticker
         for name, fn in METHODS:
             flags_cache[(name, ticker)] = (fn(df), df)
 
@@ -81,10 +84,11 @@ def ticker_difficulty() -> pd.DataFrame:
     method_names = [name for name, _ in METHODS]
     # Map our analysis methods to corresponding run_all.py names
     rename_map = {
-        "zscore_t3.5":   "zscore_w30_t3.5",
-        "iqr_k3.0":      "iqr_w30_k3.0",
-        "iforest_c0.01": "iforest_c0.01",
-        "lof_n20_c0.01": "lof_n20_c0.01",
+        "zscore_t3.5":     "zscore_w30_t3.5",
+        "iqr_k3.0":        "iqr_w30_k3.0",
+        "iforest_c0.01":   "iforest_c0.01",
+        "lof_n20_c0.01":   "lof_n20_c0.01",
+        "lstm_ae_pct0.05": "lstm_ae_pct0.05",   
     }
     keep = list(rename_map.values())
     df = all_results[all_results["method"].isin(keep)]
@@ -108,6 +112,7 @@ def fp_overlap() -> pd.DataFrame:
     rows = []
     for ticker in sorted(gt["ticker"].unique()):
         df = pd.read_csv(PROC / f"{ticker}.csv", parse_dates=["Date"], index_col="Date")
+        df.attrs["ticker"] = ticker 
         per_method_flags = {}
         for name, fn in METHODS:
             per_method_flags[name] = fn(df)
